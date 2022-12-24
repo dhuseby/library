@@ -19,5 +19,5 @@ type Book struct {
 
 // Stringify the book for pretty printing
 func (b Book) String() string {
-	return fmt.Sprintf("%s, %s", b.Title, b.ID)
+	return fmt.Sprintf("%s, ISBN:%s", b.Title, b.ID)
 }

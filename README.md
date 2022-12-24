@@ -18,6 +18,7 @@ Using Go write a minimal library API that can perform the following functions:
 - [x] Fill in tests
 - [x] Create concrete impl for the `Library` interface that uses an in-memory map and atomic.Value protection
   - [x] Pass all tests
+- [x] Make demo app fully functional
 - [ ] Add Future Proofing and Maintenance discussion to the README
   - [ ] Add information on abstracting the searching mechanism behind an interface to allow for looking up `Book`s by any field
   - [ ] Add information on adding the ability to create arbitrary search indexes
@@ -41,14 +42,14 @@ I'm building this using test-driven development. This first version has tests fo
 
 ### Future Proofing and Maintenance
 
-TODO
+
 
 ## Build, Run, and Test
 
 This project uses a simple Makefile to control building the demo app and library, running the demo app, and testing the library. The simplest thing to do is to execute the following commands in the root directory of the cloned repo:
 
 ```
-$ make build
+$ make
 $ make test
 $ make run
 ```
@@ -57,6 +58,12 @@ To clean up build artifacts, just run:
 
 ```
 $ make clean
+```
+
+If you have your .gdbinit set up correctly to allow auto-loading of local .gdbinit files, you can also debug the demo app by running:
+
+```
+$ make debug
 ```
 
 ## Project layout
