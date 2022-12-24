@@ -10,6 +10,7 @@ PROTOS = `ls proto`
 MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 MKFILE_DIR := $(dir $(MKFILE_PATH))
 RELEASE_DIR := ${MKFILE_DIR}bin
+DEBUG_DIR := ${MKFILE_DIR}dbg
 DOCKER_TAG := golayout
 
 # Version
@@ -20,7 +21,8 @@ endif
 GIT_REPO_INFO=$(shell git config --get remote.origin.url)
 
 # Build Flags
-GO_LD_FLAGS= "-s -w -X ${PROJECT_NAME}/pkg/version.RELEASE=${RELEASE} -X ${PROJECT_NAME}/pkg/version.COMMIT=${GIT_COMMIT} -X ${PROJECT_NAME}/pkg/version.REPO=${GIT_REPO_INFO} -X ${PROJECT_NAME}/pkg/version.BUILDTIME=${DATETIME} -X ${PROJECT_NAME}/pkg/version.SERVICENAME=$@"
+GO_REL_LD_FLAGS= "-s -w -X ${PROJECT_NAME}/pkg/version.RELEASE=${RELEASE} -X ${PROJECT_NAME}/pkg/version.COMMIT=${GIT_COMMIT} -X ${PROJECT_NAME}/pkg/version.REPO=${GIT_REPO_INFO} -X ${PROJECT_NAME}/pkg/version.BUILDTIME=${DATETIME} -X ${PROJECT_NAME}/pkg/version.SERVICENAME=$@"
+GO_DBG_LD_FLAGS= "-X ${PROJECT_NAME}/pkg/version.RELEASE=${RELEASE} -X ${PROJECT_NAME}/pkg/version.COMMIT=${GIT_COMMIT} -X ${PROJECT_NAME}/pkg/version.REPO=${GIT_REPO_INFO} -X ${PROJECT_NAME}/pkg/version.BUILDTIME=${DATETIME} -X ${PROJECT_NAME}/pkg/version.SERVICENAME=$@"
 CGO_SWITCH := 0
 
 # Binaries to build
@@ -29,30 +31,40 @@ BINS = demo
 # Packages to build
 PKGS = library
 
-BUILDBINS = $(BINS:%=build-%)
-RUNBINS = $(BINS:%=run-%)
-TESTPKGS = $(PKGS:%=test-%)
+RELEASE = $(BINS:%=release-%)
+DEBUG = $(BINS:%=debug-%)
+RUN = $(BINS:%=run-%)
+TEST = $(PKGS:%=test-%)
 
-build: $(BUILDBINS)
+release: $(RELEASE)
 
-$(BUILDBINS):
+$(RELEASE):
 	cd ${MKFILE_DIR} && \
-	CGO_ENABLED=${CGO_SWITCH} go build -v -trimpath -ldflags ${GO_LD_FLAGS} \
-	-o ${RELEASE_DIR}/$(@:build-%=%) ${MKFILE_DIR}cmd/$(@:build-%=%)/
+	CGO_ENABLED=${CGO_SWITCH} go build -v -trimpath -ldflags ${GO_REL_LD_FLAGS} \
+	-o ${RELEASE_DIR}/$(@:release-%=%) ${MKFILE_DIR}cmd/$(@:release-%=%)/
 
-run: $(BUILDBINS) $(RUNBINS)
+run: $(RELEASE) $(RUN)
 
-$(RUNBINS):
+$(RUN):
 	cd ${MKFILE_DIR} && \
-	${RELEASE_DIR}/$(@:run-%=%)
+	${RELEASE_DIR}/$(@:run-%=%) ${MKFILE_DIR}data/books.json
 
-test: $(TESTPKGS)
+debug: $(DEBUG)
 
-$(TESTPKGS):
+$(DEBUG):
+	cd ${MKFILE_DIR} && \
+	CGO_ENABLED=${CGO_SWITCH} go build -v -trimpath -gcflags "-N" \
+	-o ${DEBUG_DIR}/$(@:debug-%=%) ${MKFILE_DIR}cmd/$(@:debug-%=%)/ && \
+	gdb ${DEBUG_DIR}/$(@:debug-%=%)
+
+test: $(TEST)
+
+$(TEST):
 	cd ${MKFILE_DIR} && \
 	go test ${PROJECT_NAME}/pkg/$(@:test-%=%)
 
 clean:
 	@rm -f ${RELEASE_DIR}/*
+	@rm -f ${DEBUG_DIR}/*
 
-.PHONY: build
+.PHONY: release

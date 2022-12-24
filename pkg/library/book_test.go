@@ -6,5 +6,11 @@ package library
 import "testing"
 
 func TestString(t *testing.T) {
-	t.Fail()
+	b := Book { "1234567890", "Foo Bar" }
+	got := b.String()
+	want := "Foo Bar, 1234567890"
+	if got != want {
+		t.Log("should be", want, "but got", got)
+		t.Fail()
+	}
 }

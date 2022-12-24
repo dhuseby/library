@@ -3,6 +3,8 @@
 
 package library
 
+import "fmt"
+
 // The library needs is an interface so there can be multiple different
 // concrete impls with different policies for persistence and access. This
 // interface contains the complete set of operations defined in the problem
@@ -26,4 +28,14 @@ type Library interface {
 
 	// clean up the references to external resources
 	Close() error
+}
+
+// create a concrete version of Library from the type and args
+func Build(kind any, arg any) (Library, error) {
+	switch kind.(type) {
+	case DMC:
+		return DMCBuild(arg)
+	default:
+		return nil, fmt.Errorf("unknown prototype Library object type %T", kind)
+	}
 }
