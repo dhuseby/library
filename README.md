@@ -62,6 +62,8 @@ l, err := LibraryBuilder
 
 Finally, the one thing I wanted to add but didn't was a set of tests that use the `go fuzz` tooling to try to break the library by feeding it random ID's and Titles and doing random operations. I think fuzzing is a vastly underutilized tool. It is usually remarkably good at finding flaws in utility libraries like this one.
 
+One thing I want to note is that this repo is organized to be integrated into any CI/CD pipeline. The Makefile uses `-ldflags` to add versioning information into the compiled library for automated tooling that looks at binary outputs from the build process that is going into the running environment. This is a best practice in the SBOM world we live in now. Unfortunately none of this is truly cryptographic; it's just hashes of the git tree. An ideal solution would use code signing and key provenance with corroborated identities to provide true traceability of the binary artifacts. When combined with reproducible builds this utility library would fit nicely even in the most rigorously change-managed and secure software projects.
+
 Cheers!
 
 ## Build, Run, and Test
