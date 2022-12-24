@@ -19,12 +19,12 @@ Using Go write a minimal library API that can perform the following functions:
 - [x] Create concrete impl for the `Library` interface that uses an in-memory map and atomic.Value protection
   - [x] Pass all tests
 - [x] Make demo app fully functional
-- [ ] Add Future Proofing and Maintenance discussion to the README
-  - [ ] Add information on abstracting the searching mechanism behind an interface to allow for looking up `Book`s by any field
-  - [ ] Add information on adding the ability to create arbitrary search indexes
-  - [ ] Add information on using the builder pattern for constructing `Library` instances
-  - [ ] Add information on using the visitor pattern to handle persisting `Book`s as efficiently as possible (e.g. in-memory LRU caching and background persistance of `Book`s that have changed)
-  - [ ] Add thoughts on fuzzing and coverage testing
+- [x] Add Future Proofing and Maintenance discussion to the README
+  - [x] Add information on abstracting the searching mechanism behind an interface to allow for looking up `Book`s by any field
+  - [x] Add information on adding the ability to create arbitrary search indexes
+  - [x] Add information on using the builder pattern for constructing `Library` instances
+  - [x] Add information on using the visitor pattern to handle persisting `Book`s as efficiently as possible (e.g. in-memory LRU caching and background persistance of `Book`s that have changed)
+  - [x] Add thoughts on fuzzing and coverage testing
 
 ## Discussion
 
@@ -42,7 +42,27 @@ I'm building this using test-driven development. This first version has tests fo
 
 ### Future Proofing and Maintenance
 
+The main thing that a developer of a library like this needs to pay attention to is the different "policies" that may be needed in the future. Since you never know what those policies are, it's best to have well placed interfaces that abstract away key behavior. For instance, this implementation currently abstracts away the Library impl itself so that concrete impls can have different behaviors. The one impl I provide assumes that the data persisitence is to a JSON file on disk and that there is potentially multiple concurrent readers and writers but that the concurrency pattern is "mostly read".
 
+I could see an impl that instead uses a local/remote database as the persistence later. In that case the concurrency is handle by the database layer most likely so the impl in the library can be fairly simple.
+
+If the number of concrete impls begins to grow substantially, it might make sense to create interfaces for persistence and synchronization behavior so that there's only one concrete `Library` impl that relies on concrete impls of `Persisitence` and `Synchronization` to handle the CRUD of each `Book` and the concurrency respectively. That would then allow a combinatorial explosion of combinations of impls of those policies. One interesting approach to handling persistence is to use the visitor pattern combined with an LRU read cache. If the access behavior is mostly read, then an LRU cache hides any latency of accessing the underlying persistent storage. When an Book gets flushed from the cache, it must be checked to see if it has been updated and then stored before removal. When the `Library.Close()` gets called, the visitor pattern can handle the persistence of just the cached Books that have writes pending. This makes the logic of persistence extensible and ready to adapt to new data types other than `Book`.
+
+One thing that is common in libraries like this is an abstracted indexing and searching mechanism. That again would be another policy abstracted away behind interfaces so that there's only one concrete `Library` that aggregates together all of the impls for the different policies. I would still keep the `Library` interface just to keep impl details politely behind the scenes.
+
+As the number of interfaces and concrete impls grows, the builder pattern becomes the best way--IMHO--to clean up the initialization of Library with the desired policies:
+
+```
+l, err := LibraryBuilder
+	.WithSynchronization(MostlyRead)
+	.WithPersistence(MySQL)
+	.WithQueryEngine(DynamicIndexing)
+	.Build()
+```
+
+Finally, the one thing I wanted to add but didn't was a set of tests that use the `go fuzz` tooling to try to break the library by feeding it random ID's and Titles and doing random operations. I think fuzzing is a vastly underutilized tool. It is usually remarkably good at finding flaws in utility libraries like this one.
+
+Cheers!
 
 ## Build, Run, and Test
 
