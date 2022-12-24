@@ -9,6 +9,8 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
+
+	"golang.org/x/exp/maps"
 )
 
 // This impl of Library persists Books to disk (D) as JSON encoded data and stores
@@ -103,24 +105,108 @@ func DMCFromData(d []byte) (Library, error) {
 	return dmc, nil
 }
 
-func (l *DMC) ListAll() ([]*Book, error) {
-	return nil, fmt.Errorf("failed to list all")
+func (l *DMC) ListAll() ([]Book, error) {
+	// do an atomic read of the map
+	books := l.books.Load().(map[ISBN]Book)
+	return maps.Values(books), nil
 }
 
-func (l *DMC) Create(b *Book) error {
-	return fmt.Errorf("failed to create new book")
+func (l *DMC) Create(b Book) error {
+
+	// first try to read to see if the book is already in the library
+	_, err := l.Read(b.ID)
+	if err == nil {
+		return fmt.Errorf("Book is already in the library: %s", b)
+	}
+
+	// sync with other writers
+	l.mtx.Lock()
+	defer l.mtx.Unlock()
+
+	// load the current value of the data
+	books := l.books.Load().(map[ISBN]Book)
+
+	// create a copy
+	updated := make(map[ISBN]Book)
+	for k, v := range books {
+		updated[k] = v
+	}
+
+	// add in the new book
+	updated[b.ID] = b
+
+	// store the new updated data
+	l.books.Store(updated)
+
+	return nil
 }
 
-func (l *DMC) Read(id ISBN) (*Book, error) {
-	return nil, fmt.Errorf("failed to find the book for %s", id)
+func (l *DMC) Read(id ISBN) (Book, error) {
+	// load the current value of the data
+	books := l.books.Load().(map[ISBN]Book)
+
+	// try to get the book
+	book, ok := books[id]
+	if ok {
+		return book, nil
+	}
+
+	return Book{}, fmt.Errorf("failed to find the book for %s", id)
 }
 
-func (l *DMC) Update(b *Book) error {
-	return fmt.Errorf("failed to update book")
+func (l *DMC) Update(b Book) error {
+	// this function will create a new book if it doesn't exist already.
+	// if it doesn't exist, it will overwrite it with new data
+
+	// sync with other writers
+	l.mtx.Lock()
+	defer l.mtx.Unlock()
+
+	// load the current value of the data
+	books := l.books.Load().(map[ISBN]Book)
+
+	// create a copy
+	updated := make(map[ISBN]Book)
+	for k, v := range books {
+		updated[k] = v
+	}
+
+	// add in the new book
+	updated[b.ID] = b
+
+	// store the new updated data
+	l.books.Store(updated)
+
+	return nil
 }
 
-func (l *DMC) Delete(id ISBN) (*Book, error) {
-	return nil, fmt.Errorf("failed to delete the book for %s", id)
+func (l *DMC) Delete(id ISBN) (Book, error) {
+	// first try to read to see if the book is in the library
+	book, err := l.Read(id)
+	if err != nil {
+		return Book{}, fmt.Errorf("Delete cannot find book in library: %s", id)
+	}
+
+	// sync with other writers
+	l.mtx.Lock()
+	defer l.mtx.Unlock()
+
+	// load the current value of the data
+	books := l.books.Load().(map[ISBN]Book)
+
+	// create a copy of every Book but the one we're deleting
+	updated := make(map[ISBN]Book)
+	for k, v := range books {
+		if k != id {
+			updated[k] = v
+		}
+	}
+
+	// store the new updated data
+	l.books.Store(updated)
+
+	// return the book to the caller
+	return book, nil
 }
 
 func (l *DMC) Close() error {
@@ -133,7 +219,7 @@ func (l *DMC) Close() error {
 	books := l.books.Load().(map[ISBN]Book)
 
 	// marshal the data to JSON
-	data, err := json.MarshalIndent(bookList(books), "", "  ")
+	data, err := json.MarshalIndent(maps.Values(books), "", "  ")
 	if err != nil {
 		return err
 	}
@@ -145,13 +231,4 @@ func (l *DMC) Close() error {
 	}
 
 	return nil
-}
-
-// helper function for getting a slice of the value of a map
-func bookList[M ~map[K]V, K comparable, V any](m M) []V {
-	r := make([]V, 0, len(m))
-	for _, v := range m {
-		r = append(r, v)
-	}
-	return r
 }

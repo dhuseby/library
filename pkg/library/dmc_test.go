@@ -6,6 +6,8 @@ package library
 import (
 	"fmt"
 	"testing"
+
+	"golang.org/x/exp/slices"
 )
 
 func testDMC() (Library, error) {
@@ -21,14 +23,13 @@ func TestListAll(t *testing.T) {
 	}
 
 	got, err := l.ListAll()
-	want := []*Book{ &Book{ "1234567890", "Foo"}, &Book{ "0987654321", "Bar" } }
+	want := []Book{ Book{ "1234567890", "Foo"}, Book{ "0987654321", "Bar" } }
 
 	for _, g := range got {
-		for _, w := range want {
-			if g != w {
-				t.Log("failed to ListAll: %V != %V", got, want)
-				t.Fail()
-			}
+		idx := slices.IndexFunc(want, func(w Book) bool { return w.ID == g.ID })
+		if idx == -1 {
+			t.Log(fmt.Errorf("failed to ListAll. %s isn't in the want list", g))
+			t.Fail()
 		}
 	}
 }
@@ -40,7 +41,7 @@ func TestCreate(t *testing.T) {
 		t.Fail()
 	}
 
-	b := &Book{ "1234567890", "Foo" }
+	b := Book{ "1234567890", "Foo" }
 	err = l.Create(b)
 
 	if err != nil {
@@ -56,7 +57,7 @@ func TestRead(t *testing.T) {
 		t.Fail()
 	}
 
-	want := &Book{ "1234567890", "Foo"}
+	want := Book{ "1234567890", "Foo"}
 	got, err := l.Read(ISBN("1234567890"))
 
 	if err != nil {
@@ -77,7 +78,7 @@ func TestUpdate(t *testing.T) {
 		t.Fail()
 	}
 
-	want := &Book{ "1234567890", "Blah"}
+	want := Book{ "1234567890", "Blah"}
 	err = l.Update(want)
 	got, err := l.Read(ISBN("1234567890"))
 
@@ -100,7 +101,7 @@ func TestDelete(t *testing.T) {
 	}
 
 	id := ISBN("1234567890")
-	want := &Book{ id, "Blah"}
+	want := Book{ id, "Foo"}
 	got, err := l.Delete(id)
 
 	if err != nil {

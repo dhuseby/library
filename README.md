@@ -17,7 +17,7 @@ Using Go write a minimal library API that can perform the following functions:
   - [x] Create failing tests
 - [x] Fill in tests
 - [x] Create concrete impl for the `Library` interface that uses an in-memory map and atomic.Value protection
-  - [ ] Pass all tests
+  - [x] Pass all tests
 - [ ] Add Future Proofing and Maintenance discussion to the README
   - [ ] Add information on abstracting the searching mechanism behind an interface to allow for looking up `Book`s by any field
   - [ ] Add information on adding the ability to create arbitrary search indexes
